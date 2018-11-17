@@ -11,74 +11,81 @@ import scalaj.http.Http
 import scala.concurrent.{Await, Future}
 import scala.concurrent.duration.Duration
 
-class StickerBuilderBot(val token: String)
+
+class StickerBuilderBot(private val _token: String, private val _libWebpPath: String)
   extends TelegramBot
   with Polling
   with Commands {
-  self =>
   import com.bot4s.telegram.marshalling.CirceEncoders._
   import com.bot4s.telegram.marshalling.CirceDecoders._
+  import BotMessages._
 
-  private val botName = "StickerSetBuilderBot"
-  private var state = Map[Long, StickerSetBuilderState]()
-  val client = new ScalajHttpClient(token)
+  private val _botName = "StickerSetBuilderBot"
+  private var _state = Map[Long, StickerSetBuilderState]()
+  private val _converter = new WebpTransformer(_libWebpPath)
+
+  override val client = new ScalajHttpClient(_token)
+
 
   onSticker((msg, sticker) => {
     val chatId = msg.chat.id
     val userId = msg.from.get.id
+    val state = _state.applyOrElse[Long, StickerSetBuilderState](chatId, _ => Idle())
 
-    state(chatId) match {
-      case StartedCreation() => sendMsg(chatId, "Sorry, choose name firstly...")
+    state match {
+      case StartedCreation() => send(chatId, chooseNameFirstly)
       case TitleChosen(setTitle) =>
-        sendMsg(chatId, s"Creating stricker set $setTitle")
+        send(chatId, creatingSet(setTitle))
 
         getFile(sticker.fileId)
-          .flatMap(file => getFileBytes(token, file.filePath.get))
-          .flatMap(bytes => Future {WebpTransformer.transformToPng(bytes)})
+          .flatMap(file => getFileBytes(_token, file.filePath.get))
+          .flatMap(bytes => Future {_converter.convertToPng(bytes)})
           .flatMap(bytes => createStickerSet(userId, setTitle, bytes))
           .map({case (_, setName) =>
-            state += (chatId -> StickerAdd(setName, StickerSetModification()))
-            sendMsg(chatId, s"Your sticker set here: ${formatLink(setName)}" +
+            _state += (chatId -> StickerAdd(setName, StickerSetModification()))
+            send(chatId, s"Your sticker set here: ${formatLink(setName)}" +
               "\nContinue adding stickers to set " +
               "\nAnd type /done when you will be finished")
           })
+
       case StickerAdd(setName, modification) =>
         val additions = modification.addFileIds ::: List(sticker.fileId)
         val modifications = modification.copy(addFileIds = additions)
 
-        state += (chatId -> StickerAdd(setName, modifications))
+        send(chatId, "Added. Already done? Type /done")
+        _state += (chatId -> StickerAdd(setName, modifications))
 
-        sendMsg(chatId, "Added")
+      case _ => send(chatId, typeCreate)
     }
   })
 
-
-
   onCommand("/start")(msg => {
-    sendMsg(msg.chat.id, "Welcome to StickerSetBuilder! \nType /create to build your personal sticker set from existing ones")
+    val chatId = msg.chat.id
+    send(chatId, welcome)
   })
 
   onCommand("/create")(msg => {
-    sendMsg(msg.chat.id, "Okay, I'm ready to make sticker set! \nType new sticker set name")
-    state += (msg.chat.id -> StartedCreation())
+    val chatId = msg.chat.id
+    send(chatId, chooseName)
+    _state += (chatId -> StartedCreation())
   })
 
   onCommand("/done")(msg => {
     val chatId = msg.chat.id
     val userId = msg.from.get.id
 
-    state(chatId) match {
+    _state(chatId) match {
       case StickerAdd(setName, m) =>
-        sendMsg(chatId, s"Creating sticker set...")
+        send(chatId, processingImages)
 
         val futures = m.addFileIds.map(fileId => {
           getFile(fileId)
-            .flatMap(file => getFileBytes(token, file.filePath.get))
-            .flatMap(bytes => Future {WebpTransformer.transformToPng(bytes)})
+            .flatMap(file => getFileBytes(_token, file.filePath.get))
+            .flatMap(bytes => Future {_converter.convertToPng(bytes)})
         })
 
         val complete = Future.sequence(futures).flatMap(bytesList => {
-          sendMsg(chatId, s"Images processed. Adding...")
+          send(chatId, s"Images processed. Adding...")
 
           val futures = bytesList.map(bytes => addStickerToSet(userId, setName, bytes))
           Future.sequence(futures)
@@ -86,23 +93,25 @@ class StickerBuilderBot(val token: String)
 
         Await.result(complete, Duration.Inf)
 
-        sendMsg(chatId, s"Okay, Here is your link ${formatLink(setName)}")
+        send(chatId, hereYourLink(formatLink(setName)))
+        _state -= chatId
 
-        state -= chatId
       case StickerRemove(setName, _) =>
-        sendMsg(msg.chat.id, s"Okay, Here is your link ${formatLink(setName)}")
-        state -= chatId
+        send(chatId, hereYourLink(formatLink(setName)))
+        _state -= chatId
+
+      case _ => send(chatId, typeCreate)
     }
   })
 
   onMessage(msg => {
     val chatId = msg.chat.id
-    state(chatId) match {
+    _state(chatId) match {
       case StartedCreation() =>
         msg.text match {
-          case Some(text) if !text.contains('/') && text.length < (64 - 4 - botName.length) =>
-            state += (chatId -> TitleChosen(text))
-            sendMsg(chatId, "Good job! Now I'm ready to receive first sticker in the set. \nRemember first sticker will be shown as sticker set logo")
+          case Some(text) if !text.contains('/') && text.length < (64 - 4 - _botName.length) =>
+            _state += (chatId -> TitleChosen(text))
+            send(chatId, readyToReceive)
         }
     }
   })
@@ -116,31 +125,31 @@ class StickerBuilderBot(val token: String)
     })
   }
 
-  private def sendMsg(chatId: Long, msg: String): Unit = {
+  private def send(chatId: Long, msg: String): Unit = {
     val sendMsgReq = SendMessage(chatId, msg)
     client.sendRequest[Message, SendMessage](sendMsgReq)
   }
 
-  private def createStickerSet(userId: Int, setTitle: String, pngBytes: Array[Byte]): Future[(Boolean, String)] = {
-    val setName = s"${setTitle}_by_$botName"
+  private def createStickerSet(userId: Int, setTitle: String, pngBytes: Array[Byte], fileName: String = "", emojis:String = "\uD83D\uDC31"): Future[(Boolean, String)] = {
+    val setName = s"${setTitle}_by_${_botName}"
     val req = CreateNewStickerSet(
       userId,
       setName,
       setTitle,
-      InputFile("test", pngBytes),
-      "\uD83D\uDC31")
+      InputFile(fileName, pngBytes),
+      emojis)
 
     val resp = client.sendRequest[Boolean, CreateNewStickerSet](req)
 
     resp.map(res => (res, setName))
   }
 
-  private def addStickerToSet(userId: Int, setName: String, pngBytes: Array[Byte]): Future[Boolean] = {
+  private def addStickerToSet(userId: Int, setName: String, pngBytes: Array[Byte], fileName: String = "", emojis:String = "\uD83D\uDC31"): Future[Boolean] = {
     val req = AddStickerToSet(
       userId,
       setName,
-      InputFile("test", pngBytes),
-      "\uD83D\uDC31")
+      InputFile(fileName, pngBytes),
+      emojis)
 
     client.sendRequest[Boolean, AddStickerToSet](req)
   }
