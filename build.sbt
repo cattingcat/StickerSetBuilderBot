@@ -1,4 +1,4 @@
-val mainPath = "org.zxc123zxc.stickerPackBuilder.bot.Main" 
+val mainPath = "org.zxc123zxc.stickerPackBuilder.bot.Main"
 
 lazy val root = (project in file(".")).
   settings(
@@ -12,3 +12,10 @@ libraryDependencies += "com.bot4s" %% "telegram-core" % "4.0.0-RC2"
 libraryDependencies +=  "org.scalaj" %% "scalaj-http" % "2.4.1"
 
 mainClass in assembly := Some(mainPath)
+
+lazy val stage = taskKey[Unit]("Stage task for Heroku")
+val Stage = config("stage")
+
+stage := {
+  assembly.value
+}
