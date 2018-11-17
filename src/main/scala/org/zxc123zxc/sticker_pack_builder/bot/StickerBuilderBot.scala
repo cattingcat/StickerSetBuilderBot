@@ -43,7 +43,7 @@ class StickerBuilderBot(private val _token: String, private val _libWebpPath: St
           .flatMap(bytes => createStickerSet(userId, setTitle, bytes))
           .map({case (_, setName) =>
             _state += (chatId -> StickerAdd(setName, StickerSetModification()))
-            send(chatId, s"Your sticker set here: ${formatLink(setName)}" +
+            send(chatId, s"${hereYourLink(formatLink(setName))}" +
               "\nContinue adding stickers to set " +
               "\nAnd type /done when you will be finished")
           })
@@ -130,41 +130,41 @@ class StickerBuilderBot(private val _token: String, private val _libWebpPath: St
     client.sendRequest[Message, SendMessage](sendMsgReq)
   }
 
-  private def createStickerSet(userId: Int, setTitle: String, pngBytes: Array[Byte], fileName: String = "", emojis:String = "\uD83D\uDC31"): Future[(Boolean, String)] = {
-    val setName = s"${setTitle}_by_${_botName}"
+  private def createStickerSet(userId: Int, title: String, pngBytes: Array[Byte], fileName: String = "", emojis:String = "\uD83D\uDC31"): Future[(Boolean, String)] = {
+    val name = s"${title}_by_${_botName}"
     val req = CreateNewStickerSet(
       userId,
-      setName,
-      setTitle,
+      name,
+      title,
       InputFile(fileName, pngBytes),
       emojis)
 
-    val resp = client.sendRequest[Boolean, CreateNewStickerSet](req)
+    val res = client.sendRequest[Boolean, CreateNewStickerSet](req)
 
-    resp.map(res => (res, setName))
+    res.map(r => (r, name))
   }
 
-  private def addStickerToSet(userId: Int, setName: String, pngBytes: Array[Byte], fileName: String = "", emojis:String = "\uD83D\uDC31"): Future[Boolean] = {
+  private def addStickerToSet(userId: Int, name: String, pngBytes: Array[Byte], fileName: String = "", emojis:String = "\uD83D\uDC31"): Future[Boolean] = {
     val req = AddStickerToSet(
       userId,
-      setName,
+      name,
       InputFile(fileName, pngBytes),
       emojis)
 
     client.sendRequest[Boolean, AddStickerToSet](req)
   }
 
-  private def getFile(fileId: String): Future[File] = {
-    val fileReq = GetFile(fileId)
-    val fileResp = client.sendRequest[File, GetFile](fileReq)
-    fileResp
+  private def getFile(id: String): Future[File] = {
+    val req = GetFile(id)
+    val res = client.sendRequest[File, GetFile](req)
+    res
   }
 
   private def getFileBytes(token: String, filePath: String): Future[Array[Byte]] = Future {
     val uri = s"https://api.telegram.org/file/bot$token/$filePath"
-    val resp = Http(uri).asBytes
-    resp.body
+    val res = Http(uri).asBytes
+    res.body
   }
 
-  private def formatLink(setName: String): String = s"t.me/addstickers/$setName"
+  private def formatLink(name: String): String = s"t.me/addstickers/$name"
 }
