@@ -1,4 +1,4 @@
-package org.zxc123zxc.sticker_pack_builder.bot
+package org.zxc123zxc.stickerPackBuilder.bot
 
 import java.util.concurrent.TimeUnit
 
@@ -9,14 +9,17 @@ import scala.io.StdIn
 
 object Main {
   private val _home = System.getProperty("user.home")
+  private val _dir = System.getProperty("user.dir")
   private val _token = "753599151:AAEfm6xhxFUYTc_j81wHoCZLJrZ0Rxvt_Ec"
 
 
   def main(args: Array[String]): Unit = {
-    println(s"StickerBuilderBot app runs ${_home}")
-    val libWebpPath = s"${_home}/Desktop/libwebp-1.0.1-rc2-mac-10.13"
+    println(s"StickerBuilderBot app runs. ~=${_home}; .=${_dir}")
 
-    runBot(libWebpPath)
+    val uri = getClass.getClassLoader.getResource("dwebp-mac")
+    val dwebpPath = uri.getPath
+
+    runBot(dwebpPath)
   }
 
 

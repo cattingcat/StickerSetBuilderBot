@@ -1,4 +1,4 @@
-package org.zxc123zxc.sticker_pack_builder.bot
+package org.zxc123zxc.stickerPackBuilder.bot
 
 import java.util.UUID
 
@@ -7,14 +7,14 @@ import com.bot4s.telegram.api.declarative.Commands
 import com.bot4s.telegram.clients.ScalajHttpClient
 import com.bot4s.telegram.methods.{AddStickerToSet, CreateNewStickerSet, GetFile, SendMessage}
 import com.bot4s.telegram.models._
-import org.zxc123zxc.sticker_pack_builder.webp_transformer.WebpTransformer
+import org.zxc123zxc.stickerPackBuilder.webpTransformer.WebpTransformer
 import scalaj.http.Http
 
 import scala.concurrent.{Await, Future}
 import scala.concurrent.duration.Duration
 
 
-class StickerBuilderBot(private val _token: String, private val _libWebpPath: String)
+class StickerBuilderBot(private val _token: String, private val _dwebpPath: String)
   extends TelegramBot
   with Polling
   with Commands {
@@ -24,7 +24,7 @@ class StickerBuilderBot(private val _token: String, private val _libWebpPath: St
 
   private val _botName = "StickerSetBuilderBot"
   private var _state = Map[Long, StickerSetBuilderState]()
-  private val _converter = new WebpTransformer(_libWebpPath)
+  private val _converter = new WebpTransformer(_dwebpPath)
 
   override val client = new ScalajHttpClient(_token)
 
@@ -143,7 +143,7 @@ class StickerBuilderBot(private val _token: String, private val _libWebpPath: St
 
   private def createStickerSet(userId: Int, title: String, pngBytes: Array[Byte], fileName: String = "", emojis:String = "\uD83D\uDC31"): Future[(Boolean, String)] = {
     val id = UUID.randomUUID().toString.replace('-', '_')
-    val name = s"${id}_by_${_botName}"
+    val name = s"${id}_by_${_botName}".takeRight(63)
     val req = CreateNewStickerSet(
       userId,
       name,

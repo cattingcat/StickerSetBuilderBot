@@ -1,4 +1,4 @@
-package org.zxc123zxc.sticker_pack_builder.bot
+package org.zxc123zxc.stickerPackBuilder.bot
 
 object BotMessages {
   def welcome: String = "Welcome to StickerSetBuilder! \nType /create to build your personal sticker set from existing ones"

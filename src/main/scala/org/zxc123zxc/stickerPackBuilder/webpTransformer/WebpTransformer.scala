@@ -1,4 +1,4 @@
-package org.zxc123zxc.sticker_pack_builder.webp_transformer
+package org.zxc123zxc.stickerPackBuilder.webpTransformer
 
 import java.io._
 import java.nio.file.{Files, Paths, StandardCopyOption}
@@ -44,8 +44,8 @@ trait WebpTransformerBase {
 }
 
 /** Transforms WebP to PNG */
-class WebpTransformer(val libWebpPath: String) extends WebpTransformerBase {
+class WebpTransformer(private val _dwebpPath: String) extends WebpTransformerBase {
   override def convertToPng(src: String, dest: String): Unit = {
-    s"$libWebpPath/bin/dwebp $src -o $dest" !
+    s"${_dwebpPath} $src -o $dest" !
   }
 }

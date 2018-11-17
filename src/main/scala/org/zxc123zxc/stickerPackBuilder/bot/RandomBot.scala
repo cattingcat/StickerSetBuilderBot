@@ -1,4 +1,4 @@
-package org.zxc123zxc.sticker_pack_builder.bot
+package org.zxc123zxc.stickerPackBuilder.bot
 
 import java.util.Random
 
