@@ -9,5 +9,6 @@ object BotMessages {
   def creatingSet(title: String): String = s"Creating sticker set $title"
   def creatingSet: String = s"Creating sticker set ..."
   def hereYourLink(link: String): String = s"Okay, Here is your link $link"
-  def processingImages: String = "processing images ..."
+  def processingImages: String = "Processing images ..."
+  def loading: String = "Something processing, wait please ..."
 }

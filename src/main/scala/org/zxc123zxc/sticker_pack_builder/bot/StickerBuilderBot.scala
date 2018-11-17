@@ -35,6 +35,7 @@ class StickerBuilderBot(private val _token: String, private val _libWebpPath: St
     state match {
       case StartedCreation() => send(chatId, chooseNameFirstly)
       case TitleChosen(setTitle) =>
+        _state += (chatId -> Loading(state))
         send(chatId, creatingSet(setTitle))
 
         getFile(sticker.fileId)
@@ -55,6 +56,8 @@ class StickerBuilderBot(private val _token: String, private val _libWebpPath: St
         send(chatId, "Added. Already done? Type /done")
         _state += (chatId -> StickerAdd(setName, modifications))
 
+      case Loading(_) => send(chatId, loading)
+
       case _ => send(chatId, typeCreate)
     }
   })
@@ -73,9 +76,11 @@ class StickerBuilderBot(private val _token: String, private val _libWebpPath: St
   onCommand("/done")(msg => {
     val chatId = msg.chat.id
     val userId = msg.from.get.id
+    val state = _state.applyOrElse[Long, StickerSetBuilderState](chatId, _ => Idle())
 
-    _state(chatId) match {
+    state match {
       case StickerAdd(setName, m) =>
+        _state += (chatId -> Loading(state))
         send(chatId, processingImages)
 
         val futures = m.addFileIds.map(fileId => {
@@ -99,6 +104,8 @@ class StickerBuilderBot(private val _token: String, private val _libWebpPath: St
       case StickerRemove(setName, _) =>
         send(chatId, hereYourLink(formatLink(setName)))
         _state -= chatId
+
+      case Loading(_) => send(chatId, loading)
 
       case _ => send(chatId, typeCreate)
     }
