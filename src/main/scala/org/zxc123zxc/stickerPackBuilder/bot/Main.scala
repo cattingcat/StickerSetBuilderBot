@@ -16,8 +16,7 @@ object Main {
   def main(args: Array[String]): Unit = {
     println(s"StickerBuilderBot app runs. ~=${_home}; .=${_dir}")
 
-    val uri = getClass.getClassLoader.getResource("dwebp-mac")
-    val dwebpPath = uri.getPath
+    val dwebpPath = "bin/dwebp-mac"
 
     runBot(dwebpPath)
   }
