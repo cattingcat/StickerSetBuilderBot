@@ -142,8 +142,9 @@ class StickerBuilderBot(private val _token: String, private val _dwebpPath: Stri
   }
 
   private def createStickerSet(userId: Int, title: String, pngBytes: Array[Byte], fileName: String = "", emojis:String = "\uD83D\uDC31"): Future[(Boolean, String)] = {
-    val id = UUID.randomUUID().toString.replace('-', '_')
-    val name = s"${id}_by_${_botName}".takeRight(63)
+    val id = UUID.randomUUID().toString.filter(_.isLetterOrDigit)
+    val normTitle = title.filter(_.isLetterOrDigit)
+    val name = s"$id${normTitle}_by_${_botName}".takeRight(50)
     val req = CreateNewStickerSet(
       userId,
       name,

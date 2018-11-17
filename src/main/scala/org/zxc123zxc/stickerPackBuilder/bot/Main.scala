@@ -1,5 +1,6 @@
 package org.zxc123zxc.stickerPackBuilder.bot
 
+import java.nio.file.Paths
 import java.util.concurrent.TimeUnit
 
 import scala.concurrent.Await
@@ -16,9 +17,9 @@ object Main {
   def main(args: Array[String]): Unit = {
     println(s"StickerBuilderBot app runs. ~=${_home}; .=${_dir}")
 
-    val dwebpPath = "bin/dwebp-mac"
+    val dwebpPath = Paths.get(_dir, "binary/dwebp-mac")
 
-    runBot(dwebpPath)
+    runBot(dwebpPath.toString)
   }
 
 
