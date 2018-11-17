@@ -1,5 +1,7 @@
 package org.zxc123zxc.sticker_pack_builder.bot
 
+import java.util.UUID
+
 import com.bot4s.telegram.api._
 import com.bot4s.telegram.api.declarative.Commands
 import com.bot4s.telegram.clients.ScalajHttpClient
@@ -90,7 +92,7 @@ class StickerBuilderBot(private val _token: String, private val _libWebpPath: St
         })
 
         val complete = Future.sequence(futures).flatMap(bytesList => {
-          send(chatId, s"Images processed. Adding...")
+          send(chatId, addingToSet)
 
           val futures = bytesList.map(bytes => addStickerToSet(userId, setName, bytes))
           Future.sequence(futures)
@@ -113,13 +115,15 @@ class StickerBuilderBot(private val _token: String, private val _libWebpPath: St
 
   onMessage(msg => {
     val chatId = msg.chat.id
-    _state(chatId) match {
-      case StartedCreation() =>
-        msg.text match {
-          case Some(text) if !text.contains('/') && text.length < (64 - 4 - _botName.length) =>
-            _state += (chatId -> TitleChosen(text))
-            send(chatId, readyToReceive)
-        }
+    val state = _state.applyOrElse[Long, StickerSetBuilderState](chatId, _ => Idle())
+
+    (state, msg.text) match {
+      case (StartedCreation(), Some(text)) if text.length < 64 && !text.contains('/') =>
+        _state += (chatId -> TitleChosen(text))
+        send(chatId, readyToReceive)
+      case (StartedCreation(), Some(text)) if !text.contains('/') => send(chatId, invalitTitle)
+      case (Idle(), Some(text)) if !text.contains('/') => send(chatId, welcome)
+      //case (Idle(), _) => send(chatId, typeCreate)
     }
   })
 
@@ -138,7 +142,8 @@ class StickerBuilderBot(private val _token: String, private val _libWebpPath: St
   }
 
   private def createStickerSet(userId: Int, title: String, pngBytes: Array[Byte], fileName: String = "", emojis:String = "\uD83D\uDC31"): Future[(Boolean, String)] = {
-    val name = s"${title}_by_${_botName}"
+    val id = UUID.randomUUID().toString.replace('-', '_')
+    val name = s"${id}_by_${_botName}"
     val req = CreateNewStickerSet(
       userId,
       name,
