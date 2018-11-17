@@ -12,5 +12,5 @@ object BotMessages {
   def processingImages: String = "Processing images ..."
   def addingToSet: String = "Images processed. Adding images to set ..."
   def loading: String = "Something processing, wait please ..."
-  def invalitTitle: String = "Invalid sticker set title"
+  def invalidTitle: String = "Invalid sticker set title"
 }

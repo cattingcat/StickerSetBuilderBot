@@ -121,7 +121,7 @@ class StickerBuilderBot(private val _token: String, private val _libWebpPath: St
       case (StartedCreation(), Some(text)) if text.length < 64 && !text.contains('/') =>
         _state += (chatId -> TitleChosen(text))
         send(chatId, readyToReceive)
-      case (StartedCreation(), Some(text)) if !text.contains('/') => send(chatId, invalitTitle)
+      case (StartedCreation(), Some(text)) if !text.contains('/') => send(chatId, invalidTitle)
       case (Idle(), Some(text)) if !text.contains('/') => send(chatId, welcome)
       //case (Idle(), _) => send(chatId, typeCreate)
     }
