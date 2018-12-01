@@ -11,13 +11,17 @@ import scala.io.StdIn
 object Main {
   private val _home = System.getProperty("user.home")
   private val _dir = System.getProperty("user.dir")
+  private val _os = System.getProperty("os.name")
   private val _token = "753599151:AAEfm6xhxFUYTc_j81wHoCZLJrZ0Rxvt_Ec"
 
 
   def main(args: Array[String]): Unit = {
     p(s"StickerBuilderBot app runs. ~=${_home}; .=${_dir}")
 
-    val dwebpPath = Paths.get(_dir, "binary/dwebp")
+    val dwebpPath = _os match {
+      case "Mac OS X" => Paths.get(_dir, "binary/dwebp-mac")
+      case _ => Paths.get(_dir, "binary/dwebp")
+    }
 
     runBot(dwebpPath.toString)
   }
