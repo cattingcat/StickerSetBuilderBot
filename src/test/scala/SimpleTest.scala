@@ -15,6 +15,7 @@ class SimpleTest extends FunSuite {
 
     list match {
       case x :: y :: _ => assert(x == 1 && y == 2)
+      case _ =>
     }
   }
 }
