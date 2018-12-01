@@ -1,6 +1,6 @@
 package org.zxc123zxc.stickerPackBuilder.bot
 
-abstract class StickerSetBuilderState
+sealed abstract class StickerSetBuilderState
 final case class Idle() extends StickerSetBuilderState
 final case class StartedCreation() extends StickerSetBuilderState
 final case class StartedEditing() extends StickerSetBuilderState

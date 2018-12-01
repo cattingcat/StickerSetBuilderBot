@@ -15,9 +15,9 @@ object Main {
 
 
   def main(args: Array[String]): Unit = {
-    println(s"StickerBuilderBot app runs. ~=${_home}; .=${_dir}")
+    p(s"StickerBuilderBot app runs. ~=${_home}; .=${_dir}")
 
-    val dwebpPath = Paths.get(_dir, "binary/dwebp")
+    val dwebpPath = Paths.get(_dir, "binary/dwebp-mac")
 
     runBot(dwebpPath.toString)
   }
