@@ -55,18 +55,82 @@ class StickerBuilderBot(private val _token: String, private val _dwebpPath: Stri
               "\nContinue adding stickers to set " +
               "\nAnd type /done when you will be finished")
           case Failure(e) =>
+            _state += (chatId -> TitleChosen(setTitle))
+            p(s"$userId $chatId : Err : ${e.getMessage}")
+            send(chatId, s"I'm sorry, server error occurred :( try again")
+        }
+
+      case StickerAdd(setName, _) =>
+        _state += (chatId -> Loading(state))
+
+        val future = getFile(sticker.fileId)
+          .flatMap(file => getFileBytes(_token, file.filePath.get))
+          .flatMap(bytes => Future {_converter.convertToPng(bytes)})
+          .flatMap(bytes => addStickerToSet(userId, setName, bytes))
+
+        future.onComplete {
+          case Success(_) =>
+            p(s"$userId $chatId : Succ : sticker added")
+            send(chatId, "Added. Already done? Type /done")
+            _state += (chatId -> StickerAdd(setName, StickerSetModification()))
+          case Failure(e) =>
+            p(s"$userId $chatId : Err : ${e.getMessage}")
+            send(chatId, s"I'm sorry, server error occurred :(")
+            _state += (chatId -> StickerAdd(setName, StickerSetModification()))
+        }
+
+      case Loading(_) => send(chatId, loading)
+      case _ => send(chatId, typeCreate)
+    }
+  })
+
+  onImage((msg, img) => {
+    val chatId = msg.chat.id
+    val userId = msg.from.get.id
+    val state = _state.applyOrElse[Long, StickerSetBuilderState](chatId, _ => Idle())
+
+    p(s"$userId $chatId : Image ${img.fileId} received")
+
+    state match {
+      case StartedCreation() => send(chatId, chooseNameFirstly)
+      case TitleChosen(setTitle) =>
+        _state += (chatId -> Loading(state))
+        send(chatId, creatingSet(setTitle))
+
+        val f = getFile(img.fileId)
+          .flatMap(file => getFileBytes(_token, file.filePath.get))
+          //.flatMap(bytes => Future {_converter.convertToPng(bytes)})
+          .flatMap(bytes => createStickerSet(userId, setTitle, bytes))
+
+        f.onComplete {
+          case Success((_, setName)) =>
+            p("Success! pack created")
+            _state += (chatId -> StickerAdd(setName, StickerSetModification()))
+            send(chatId, s"${hereYourLink(formatLink(setName))}" +
+              "\nContinue adding stickers to set " +
+              "\nAnd type /done when you will be finished")
+          case Failure(e) =>
             p(s"$userId $chatId : Err : ${e.getMessage}")
             send(chatId, s"I'm sorry, server error occurred :(")
         }
 
-      case StickerAdd(setName, modification) =>
-        val additions = modification.addFileIds ::: List(sticker.fileId)
-        val modifications = modification.copy(addFileIds = additions)
+      case StickerAdd(setName, _) =>
+        _state += (chatId -> Loading(state))
 
-        send(chatId, "Added. Already done? Type /done")
-        _state += (chatId -> StickerAdd(setName, modifications))
+        val future = getFile(img.fileId)
+          .flatMap(file => getFileBytes(_token, file.filePath.get))
+          .flatMap(bytes => addStickerToSet(userId, setName, bytes))
 
-        p(s"$userId $chatId : Sticker added to user's cache")
+        future.onComplete {
+          case Success(_) =>
+            p(s"$userId $chatId : Succ : file added")
+            send(chatId, "Added. Already done? Type /done")
+            _state += (chatId -> StickerAdd(setName, StickerSetModification()))
+          case Failure(e) =>
+            p(s"$userId $chatId : Err : ${e.getMessage}")
+            send(chatId, s"I'm sorry, server error occurred :(")
+            _state += (chatId -> StickerAdd(setName, StickerSetModification()))
+        }
 
       case Loading(_) => send(chatId, loading)
 
@@ -92,38 +156,13 @@ class StickerBuilderBot(private val _token: String, private val _dwebpPath: Stri
 
     state match {
       case StickerAdd(setName, m) =>
-        _state += (chatId -> Loading(state))
-        send(chatId, processingImages)
-
-        val futures = m.addFileIds.map(fileId => {
-          getFile(fileId)
-            .flatMap(file => getFileBytes(_token, file.filePath.get))
-            .flatMap(bytes => Future {_converter.convertToPng(bytes)})
-        })
-
-        val complete = Future.sequence(futures).flatMap(bytesList => {
-          send(chatId, addingToSet)
-
-          val futures = bytesList.map(bytes => addStickerToSet(userId, setName, bytes))
-          Future.sequence(futures)
-        })
-
-        complete.onComplete {
-          case Success(_) =>
-            p(s"$userId $chatId : Success! All stickers attached")
-            send(chatId, hereYourLink(formatLink(setName)))
-            _state -= chatId
-          case Failure(e) =>
-            p(s"$userId $chatId : Err : ${e.getMessage}")
-            send(chatId, s"I'm sorry, server error occurred :(")
-        }
-
+        p(s"$userId $chatId : Success! All stickers attached")
+        send(chatId, hereYourLink(formatLink(setName)))
+        _state -= chatId
       case StickerRemove(setName, _) =>
         send(chatId, hereYourLink(formatLink(setName)))
         _state -= chatId
-
       case Loading(_) => send(chatId, loading)
-
       case _ => send(chatId, typeCreate)
     }
   })
@@ -146,6 +185,15 @@ class StickerBuilderBot(private val _token: String, private val _dwebpPath: Stri
     onMessage(msg => {
       msg.sticker match {
         case Some(s@Sticker(_, _, _, _, _, Some(_), _, _)) => action(msg, s)
+        case _ =>
+      }
+    })
+  }
+
+  private def onImage(action: (Message, PhotoSize) => Unit): Unit = {
+    onMessage(msg => {
+      msg.photo match {
+        case Some(photo) => action(msg, photo.last)
         case _ =>
       }
     })
