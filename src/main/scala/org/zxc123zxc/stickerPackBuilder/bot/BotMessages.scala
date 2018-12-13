@@ -4,6 +4,7 @@ object BotMessages {
   def welcome: String = "Welcome to StickerSetBuilder! \nType /create to build your personal sticker set from existing ones"
   def typeCreate: String = "Start creating new sticker set with /create command"
   def chooseName: String = "Okay, I'm ready to make sticker set! \nType new sticker set name (length < 64)"
+  def sendAnySticker: String = "Okay, send any sticker from set you want to add sticker"
   def readyToReceive: String = "Good job! Now I'm ready to receive first sticker in the set. \nRemember first sticker will be shown as sticker set logo"
   def chooseNameFirstly: String = "Sorry, choose the name firstly ..."
   def creatingSet(title: String): String = s"Creating sticker set $title"

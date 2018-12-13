@@ -5,7 +5,7 @@ import java.util.UUID
 import com.bot4s.telegram.api._
 import com.bot4s.telegram.api.declarative.Commands
 import com.bot4s.telegram.clients.ScalajHttpClient
-import com.bot4s.telegram.methods.{AddStickerToSet, CreateNewStickerSet, GetFile, SendMessage}
+import com.bot4s.telegram.methods._
 import com.bot4s.telegram.models._
 import org.zxc123zxc.stickerPackBuilder.webpTransformer.WebpTransformer
 import scalaj.http.Http
@@ -79,17 +79,26 @@ class StickerBuilderBot(private val _token: String, private val _dwebpPath: Stri
             _state += (chatId -> StickerAdd(setName, StickerSetModification()))
         }
 
+      case StartedEditing() =>
+        sticker.setName match {
+          case Some(name) =>
+            _state += (chatId -> StickerAdd(name, StickerSetModification()))
+            send(chatId, s"Okay, sticker set chosen. Send files or stickers you want to add")
+
+          case None => send(chatId, s"I'm sorry, I cant recognize this set, try again")
+        }
+
       case Loading(_) => send(chatId, loading)
       case _ => send(chatId, typeCreate)
     }
   })
 
-  onImage((msg, img) => {
+  onImage((msg, fileId) => {
     val chatId = msg.chat.id
     val userId = msg.from.get.id
     val state = _state.applyOrElse[Long, StickerSetBuilderState](chatId, _ => Idle())
 
-    p(s"$userId $chatId : Image ${img.fileId} received")
+    p(s"$userId $chatId : Image $fileId received")
 
     state match {
       case StartedCreation() => send(chatId, chooseNameFirstly)
@@ -97,7 +106,7 @@ class StickerBuilderBot(private val _token: String, private val _dwebpPath: Stri
         _state += (chatId -> Loading(state))
         send(chatId, creatingSet(setTitle))
 
-        val f = getFile(img.fileId)
+        val f = getFile(fileId)
           .flatMap(file => getFileBytes(_token, file.filePath.get))
           //.flatMap(bytes => Future {_converter.convertToPng(bytes)})
           .flatMap(bytes => createStickerSet(userId, setTitle, bytes))
@@ -117,7 +126,7 @@ class StickerBuilderBot(private val _token: String, private val _dwebpPath: Stri
       case StickerAdd(setName, _) =>
         _state += (chatId -> Loading(state))
 
-        val future = getFile(img.fileId)
+        val future = getFile(fileId)
           .flatMap(file => getFileBytes(_token, file.filePath.get))
           .flatMap(bytes => addStickerToSet(userId, setName, bytes))
 
@@ -147,6 +156,12 @@ class StickerBuilderBot(private val _token: String, private val _dwebpPath: Stri
     val chatId = msg.chat.id
     send(chatId, chooseName)
     _state += (chatId -> StartedCreation())
+  })
+
+  onCommand("/add")(msg => {
+    val chatId = msg.chat.id
+    send(chatId, sendAnySticker)
+    _state += (chatId -> StartedEditing())
   })
 
   onCommand("/done")(msg => {
@@ -190,10 +205,14 @@ class StickerBuilderBot(private val _token: String, private val _dwebpPath: Stri
     })
   }
 
-  private def onImage(action: (Message, PhotoSize) => Unit): Unit = {
+  private def onImage(action: (Message, String) => Unit): Unit = {
     onMessage(msg => {
       msg.photo match {
-        case Some(photo) => action(msg, photo.last)
+        case Some(photo) => action(msg, photo.last.fileId)
+        case _ =>
+      }
+      msg.document match {
+        case Some(file) if file.fileName.map(_.toLowerCase.contains(".png")).nonEmpty => action(msg, file.fileId)
         case _ =>
       }
     })
