@@ -1,7 +1,7 @@
 package org.zxc123zxc.stickerPackBuilder.bot
 
 object BotMessages {
-  def welcome: String = "Welcome to StickerSetBuilder! \nType /create to build your personal sticker set from existing ones"
+  def welcome: String = "Welcome to StickerSetBuilder! \nType /create to build your personal sticker set from existing ones. Or type /add to add sticker to existing set"
   def typeCreate: String = "Start creating new sticker set with /create command"
   def chooseName: String = "Okay, I'm ready to make sticker set! \nType new sticker set name (length < 64)"
   def sendAnySticker: String = "Okay, send any sticker from set you want to add sticker"
